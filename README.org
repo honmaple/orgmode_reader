@@ -31,5 +31,6 @@
    
 ** config
    *ORG_MAX_LINE*: How many lines to find file header,default *15*
+   *ORG_TO_TOC*: Whether to generate table of contents,default *True*
 
 

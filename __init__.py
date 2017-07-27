@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-19 10:23:59 (CST)
-# Last Update:星期四 2017-7-27 10:43:39 (CST)
+# Last Update:星期四 2017-7-27 11:14:3 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -43,8 +43,9 @@ class OrgReader(BaseReader):
 
     def read(self, filename):
         max_line = self.settings.get('ORG_MAX_LINE', 15)
+        to_toc = self.settings.get('ORG_TO_TOC', True)
         with pelican_open(filename) as text:
-            content = org_to_html(text)
+            content = org_to_html(text, toc=to_toc)
             meta = text.splitlines()[:max_line]
         metadata = {}
         for line in meta:
