@@ -1,0 +1,35 @@
+* OrgMode Reader
+  another org-mode reader with org-python.
+
+** quickstart
+   #+BEGIN_SRC sh
+   pip install org-python
+   #+END_SRC
+
+   Org file header,You can add content to your emacs config
+   #+BEGIN_SRC elisp
+(use-package autoinsert
+  :defer t
+  :init (auto-insert-mode)
+  :config
+  (progn
+    (setq auto-insert-query nil)
+    (setq auto-insert-alist
+          '(((org-mode . "org-mode") nil
+             "#+TITLE: " (file-name-base buffer-file-name)"\n"
+             "#+DATE: " (format-time-string "%F" (current-time)) "\n"
+             "#+CATEGORY: \n"
+             "#+AUTHOR: " (user-full-name)"\n"
+             "#+PROPERTY: TAGS \n"
+             "#+PROPERTY: LANGUAGE en\n"
+             "#+PROPERTY: SUMMARY \n"
+             "#+PROPERTY: SLUG \n"
+             "#+PROPERTY: MODIFIED \n"
+             "#+PROPERTY: SAVE_AS \n"))))
+)
+   #+END_SRC
+   
+** config
+   *ORG_MAX_LINE*: How many lines to find file header,default *15*
+
+
