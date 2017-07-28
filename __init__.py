@@ -6,7 +6,7 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-19 10:23:59 (CST)
-# Last Update:星期四 2017-7-27 11:14:3 (CST)
+# Last Update:星期五 2017-7-28 14:43:34 (CST)
 #          By:
 # Description:
 # **************************************************************************
@@ -52,6 +52,7 @@ class OrgReader(BaseReader):
             for _meta, _regex in regex.items():
                 if _regex.match(line):
                     metadata[_meta] = _regex.match(line).group(1)
+                    break
 
         for key in ['save_as', 'modified', 'lang', 'summary']:
             if key in metadata and not metadata[key]:
