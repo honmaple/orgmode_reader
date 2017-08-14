@@ -6,14 +6,23 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-19 10:23:59 (CST)
-# Last Update:星期五 2017-7-28 14:43:34 (CST)
+# Last Update:星期一 2017-8-14 14:18:35 (CST)
 #          By:
 # Description:
 # **************************************************************************
 from pelican import signals
 from pelican.readers import BaseReader
 from pelican.utils import pelican_open
-from orgpython import org_to_html
+from orgpython import Regex
+from orgpython import Org as _Org
+from orgpython import Heading as _Heading
+from orgpython import Src as _Src
+from orgpython import Example as _Example
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.formatters import HtmlFormatter
+from pygments.util import ClassNotFound
+from hashlib import sha1
 from re import compile
 
 regex = {
@@ -26,7 +35,8 @@ regex = {
     'language': compile(r'^#\+PROPERTY:\s+LANGUAGE (.*?)$'),
     'modified': compile(r'^#\+PROPERTY:\s+MODIFIED (.*?)$'),
     'tags': compile(r'^#\+PROPERTY:\s+TAGS (.*?)$'),
-    'save_as': compile(r'^#\+PROPERTY:\s+SAVE_AS (.*?)$')
+    'save_as': compile(r'^#\+PROPERTY:\s+SAVE_AS (.*?)$'),
+    'status': compile(r'^#\+PROPERTY:\s+STATUS (.*?)$')
     # 'summary': compile(r'^#\+SUMMARY:(.*?)$'),
     # 'slug': compile(r'^#\+SLUG:(.*?)$'),
     # 'language': compile(r'^#\+LANGUAGE:(.*?)$'),
@@ -34,6 +44,51 @@ regex = {
     # 'tags': compile(r'^#\+TAGS:(.*?)$'),
     # 'save_as': compile(r'^#\+SAVE_AS:(.*?)$'),
 }
+
+
+class Heading(_Heading):
+    def heading_id(self, text):
+        i = int(sha1(text.encode()).hexdigest(), 16) % (10**8)
+        return 'org-{}'.format(i)
+
+
+class Src(_Src):
+    def to_html(self):
+        text = '\n'.join([child.to_html() for child in self.children])
+        try:
+            lexer = get_lexer_by_name(self.lang, stripall=True)
+        except ClassNotFound:
+            lexer = guess_lexer(text)
+        formatter = HtmlFormatter()
+        return highlight(text, lexer, formatter)
+
+
+class Example(_Example):
+    def to_html(self):
+        text = '\n'.join([child.to_html() for child in self.children])
+        lexer = guess_lexer(text)
+        formatter = HtmlFormatter()
+        return highlight(text, lexer, formatter)
+
+
+class Org(_Org):
+    def parse_heading(self, text):
+        element = Heading(text, self.offset, self.toc.flag)
+        self.toc.append(element)
+        self.children.append(element)
+
+    def parse_src(self, text):
+        lang = Regex.begin_src.match(text).group('lang')
+        element = Src(self.current, lang)
+        self.begin_init(element)
+
+    def parse_example(self, text):
+        element = Example(self.current)
+        self.begin_init(element)
+
+
+def org_to_html(text, offset=0, toc=True):
+    return Org(text, offset, toc).to_html()
 
 
 class OrgReader(BaseReader):
@@ -51,7 +106,7 @@ class OrgReader(BaseReader):
         for line in meta:
             for _meta, _regex in regex.items():
                 if _regex.match(line):
-                    metadata[_meta] = _regex.match(line).group(1)
+                    metadata[_meta] = _regex.match(line).group(1).strip()
                     break
 
         for key in ['save_as', 'modified', 'lang', 'summary']:
