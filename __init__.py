@@ -6,89 +6,42 @@
 # Author: jianglin
 # Email: xiyang0807@gmail.com
 # Created: 2017-07-19 10:23:59 (CST)
-# Last Update:星期一 2017-8-14 14:18:35 (CST)
+# Last Update: Sunday 2020-08-16 20:00:27 (CST)
 #          By:
 # Description:
 # **************************************************************************
+from re import compile
+
 from pelican import signals
 from pelican.readers import BaseReader
 from pelican.utils import pelican_open
-from orgpython import Regex
-from orgpython import Org as _Org
-from orgpython import Heading as _Heading
-from orgpython import Src as _Src
-from orgpython import Example as _Example
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name, guess_lexer
-from pygments.formatters import HtmlFormatter
-from pygments.util import ClassNotFound
-from hashlib import sha1
-from re import compile
 
-regex = {
-    'title': compile(r'^#\+TITLE:(.*?)$'),
-    'date': compile(r'^#\+DATE:(.*?)$'),
-    'category': compile(r'^#\+CATEGORY:(.*?)$'),
-    'author': compile(r'^#\+AUTHOR:(.*?)$'),
-    'summary': compile(r'^#\+PROPERTY:\s+SUMMARY (.*?)$'),
-    'slug': compile(r'^#\+PROPERTY:\s+SLUG (.*?)$'),
-    'language': compile(r'^#\+PROPERTY:\s+LANGUAGE (.*?)$'),
-    'modified': compile(r'^#\+PROPERTY:\s+MODIFIED (.*?)$'),
-    'tags': compile(r'^#\+PROPERTY:\s+TAGS (.*?)$'),
-    'save_as': compile(r'^#\+PROPERTY:\s+SAVE_AS (.*?)$'),
-    'status': compile(r'^#\+PROPERTY:\s+STATUS (.*?)$')
-    # 'summary': compile(r'^#\+SUMMARY:(.*?)$'),
-    # 'slug': compile(r'^#\+SLUG:(.*?)$'),
-    # 'language': compile(r'^#\+LANGUAGE:(.*?)$'),
-    # 'modified': compile(r'^#\+MODIFIED:(.*?)$'),
-    # 'tags': compile(r'^#\+TAGS:(.*?)$'),
-    # 'save_as': compile(r'^#\+SAVE_AS:(.*?)$'),
-}
+import orgpython
+from orgpython import Document
+from orgpython.inline import Link
 
 
-class Heading(_Heading):
-    def heading_id(self, text):
-        i = int(sha1(text.encode()).hexdigest(), 16) % (10**8)
-        return 'org-{}'.format(i)
-
-
-class Src(_Src):
+class _Link(Link):
     def to_html(self):
-        text = '\n'.join([child.to_html() for child in self.children])
-        try:
-            lexer = get_lexer_by_name(self.lang, stripall=True)
-        except ClassNotFound:
-            lexer = guess_lexer(text)
-        formatter = HtmlFormatter()
-        return highlight(text, lexer, formatter)
+        src = self.content
+        if self.is_img():
+            label = '<a href="{0}" data-fancybox="image"><img data-src="{1}" class="lazyload" /></a>'
+            qiniu_url = compile(r'https?://7xs8ln.com1.z0.glb.clouddn.com')
+            upyun_url = compile(r'https?://honmaple.b0.upaiyun.com')
+            if qiniu_url.match(src) or upyun_url.match(src):
+                return label.format(src + '-show', src + '-thumb')
+            url = compile(r'https?://static.honmaple.com')
+            if url.match(src):
+                return label.format(src + '?type=show', src + '?type=thumb')
+            return label.format(src, src)
+        return super(_Link, self).to_html()
 
 
-class Example(_Example):
-    def to_html(self):
-        text = '\n'.join([child.to_html() for child in self.children])
-        lexer = guess_lexer(text)
-        formatter = HtmlFormatter()
-        return highlight(text, lexer, formatter)
+def parse_link(self, index, lines):
+    return _Link.match(lines, index)
 
 
-class Org(_Org):
-    def parse_heading(self, text):
-        element = Heading(text, self.offset, self.toc.flag)
-        self.toc.append(element)
-        self.children.append(element)
-
-    def parse_src(self, text):
-        lang = Regex.begin_src.match(text).group('lang')
-        element = Src(self.current, lang)
-        self.begin_init(element)
-
-    def parse_example(self, text):
-        element = Example(self.current)
-        self.begin_init(element)
-
-
-def org_to_html(text, offset=0, toc=True):
-    return Org(text, offset, toc).to_html()
+orgpython.inline.InlineText.parse_link = parse_link
 
 
 class OrgReader(BaseReader):
@@ -97,25 +50,20 @@ class OrgReader(BaseReader):
     file_extensions = ['org']
 
     def read(self, filename):
-        max_line = self.settings.get('ORG_MAX_LINE', 15)
         to_toc = self.settings.get('ORG_TO_TOC', True)
         with pelican_open(filename) as text:
-            content = org_to_html(text, toc=to_toc)
-            meta = text.splitlines()[:max_line]
-        metadata = {}
-        for line in meta:
-            for _meta, _regex in regex.items():
-                if _regex.match(line):
-                    metadata[_meta] = _regex.match(line).group(1).strip()
-                    break
+            org = Document(text, offset=1, toc=to_toc, highlight=True)
+            content = org.to_html()
 
-        for key in ['save_as', 'modified', 'lang', 'summary']:
-            if key in metadata and not metadata[key]:
-                metadata.pop(key)
+        metadata = {
+            key.lower(): value
+            for key, value in org.properties.items()
+        }
 
         parsed = {}
         for key, value in metadata.items():
-            parsed[key] = self.process_metadata(key, value)
+            if value:
+                parsed[key] = self.process_metadata(key, value)
 
         return content, parsed
 
@@ -126,3 +74,7 @@ def add_reader(readers):
 
 def register():
     signals.readers_init.connect(add_reader)
+
+
+if __name__ == '__main__':
+    print("aaa")
